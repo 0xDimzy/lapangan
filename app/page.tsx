@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Hammer,
@@ -14,6 +14,8 @@ import {
   Star,
   Phone,
   MessageCircle,
+  Maximize2,
+  X
 } from "lucide-react";
 
 // =====================
@@ -115,6 +117,72 @@ const Badge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </span>
 );
 
+// Before/After slider component
+const BeforeAfterSlider: React.FC<{
+  before: string;
+  after: string;
+  alt?: string;
+}> = ({ before, after, alt }) => {
+  const [pos, setPos] = useState(70);
+  return (
+    <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-gray-100">
+      <img src={before} alt={alt || "before"} className="absolute inset-0 w-full h-full object-cover" />
+      <img
+        src={after}
+        alt={alt || "after"}
+        className="absolute inset-0 h-full object-cover"
+        style={{ width: pos + "%" }}
+      />
+      <div
+        className="absolute top-0 bottom-0"
+        style={{ left: `calc(${pos}% - 1px)` }}
+      >
+        <div className="w-0.5 h-full bg-white/80 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]" />
+        <div className="absolute top-1/2 -translate-y-1/2 -left-3 w-6 h-6 rounded-full bg-white border border-black/10 grid place-items-center shadow">
+          <div className="w-2 h-2 rounded-full bg-black/60" />
+        </div>
+      </div>
+      <input
+        aria-label="Before after slider"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize"
+        type="range"
+        min={0}
+        max={100}
+        value={pos}
+        onChange={(e) => setPos(parseInt(e.target.value, 10))}
+      />
+      <div className="absolute left-3 bottom-3 flex gap-2">
+        <span className="text-xs px-2 py-0.5 rounded bg-white/80 border">Before</span>
+        <span className="text-xs px-2 py-0.5 rounded bg-white/80 border">After</span>
+      </div>
+    </div>
+  );
+};
+
+// Lightbox modal
+const Lightbox: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ open, onClose, children }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm">
+      <button
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
+        onClick={onClose}
+        aria-label="Close lightbox"
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <div className="w-full h-full grid place-items-center p-4">{children}</div>
+    </div>
+  );
+};
+
 const CategoryPills: React.FC<{
   active: string;
   onChange: (c: string) => void;
@@ -124,9 +192,7 @@ const CategoryPills: React.FC<{
       <button
         key={c}
         onClick={() => onChange(c)}
-        className={`px-3 py-1.5 rounded-full border text-sm transition hover:shadow ${
-          active === c ? "bg-black text-white border-black" : "bg-white border-black/10"
-        }`}
+        className={`px-3 py-1.5 rounded-full border text-sm transition hover:shadow ${active === c ? "bg-black text-white border-black" : "bg-white border-black/10"}`}
       >
         {c}
       </button>
@@ -134,42 +200,25 @@ const CategoryPills: React.FC<{
   </div>
 );
 
+type PortfolioItem = (typeof SAMPLE_PORTFOLIO)[number];
+
 const PortfolioCard: React.FC<{
-  item: (typeof SAMPLE_PORTFOLIO)[number];
-}> = ({ item }) => {
-  const [showAfter, setShowAfter] = useState(true);
+  item: PortfolioItem;
+  onZoom: (item: PortfolioItem) => void;
+}> = ({ item, onZoom }) => {
   return (
     <div className="group rounded-2xl overflow-hidden border border-black/10 bg-white shadow-sm hover:shadow-md transition">
-      <div className="aspect-video w-full overflow-hidden bg-gray-100">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={showAfter ? item.afterImg : item.beforeImg}
-          alt={item.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
+      <BeforeAfterSlider before={item.beforeImg} after={item.afterImg} alt={item.title} />
       <div className="p-4">
         <div className="flex items-center justify-between gap-3">
           <Badge>{item.category}</Badge>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAfter(false)}
-              className={`px-2 py-1 text-xs rounded border ${
-                !showAfter ? "bg-black text-white border-black" : "bg-white"
-              }`}
-            >
-              Before
-            </button>
-            <button
-              onClick={() => setShowAfter(true)}
-              className={`px-2 py-1 text-xs rounded border ${
-                showAfter ? "bg-black text-white border-black" : "bg-white"
-              }`}
-            >
-              After
-            </button>
-          </div>
+          <button
+            onClick={() => onZoom(item)}
+            className="inline-flex items-center gap-1 text-xs rounded border px-2 py-1 hover:shadow"
+            aria-label="Perbesar gambar"
+          >
+            <Maximize2 className="w-4 h-4" /> Perbesar
+          </button>
         </div>
         <h3 className="font-semibold text-lg mt-3">{item.title}</h3>
         <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
@@ -212,6 +261,9 @@ const Testimonial: React.FC<{
 
 export default function Page() {
   const [activeCategory, setActiveCategory] = useState<string>("Semua");
+  const [zoomItem, setZoomItem] = useState<PortfolioItem | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (activeCategory === "Semua") return SAMPLE_PORTFOLIO;
@@ -222,6 +274,37 @@ export default function Page() {
     `Halo ${BRAND.name}, saya ingin konsultasi pembuatan/renovasi lapangan. Mohon info lebih lanjut.`
   );
   const waLink = `https://wa.me/${BRAND.phoneIntl}?text=${waText}`;
+
+  async function submitEmail(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSending(true);
+    setSendResult(null);
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name: String(fd.get("name") || ""),
+      phone: String(fd.get("phone") || ""),
+      type: String(fd.get("type") || ""),
+      message: String(fd.get("message") || ""),
+    };
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setSendResult("✅ Permintaan terkirim. Kami akan menghubungi Anda.");
+        (e.currentTarget as HTMLFormElement).reset();
+      } else {
+        setSendResult(`❌ Gagal mengirim: ${data.error || "Unknown error"}`);
+  }
+  catch (err) {
+      setSendResult("❌ Terjadi kesalahan jaringan.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 scroll-smooth">
@@ -257,7 +340,6 @@ export default function Page() {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=2000&auto=format&fit=crop"
             alt="Hero"
@@ -311,7 +393,6 @@ export default function Page() {
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {SAMPLE_PORTFOLIO.slice(0, 3).map((p) => (
                 <div key={p.id} className="rounded-xl overflow-hidden border border-black/10 bg-white/70">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.afterImg} alt={p.title} className="h-40 w-full object-cover" />
                   <div className="p-3">
                     <div className="text-xs text-muted-foreground">{p.category}</div>
@@ -371,7 +452,7 @@ export default function Page() {
 
           <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((item) => (
-              <PortfolioCard key={item.id} item={item} />
+              <PortfolioCard key={item.id} item={item} onZoom={setZoomItem} />
             ))}
           </div>
 
@@ -382,6 +463,16 @@ export default function Page() {
           </div>
         </div>
       </section>
+
+      {/* LIGHTBOX CONTENT */}
+      <Lightbox open={!!zoomItem} onClose={() => setZoomItem(null)}>
+        {zoomItem ? (
+          <div className="w-full max-w-5xl">
+            <BeforeAfterSlider before={zoomItem.beforeImg} after={zoomItem.afterImg} alt={zoomItem.title} />
+            <div className="mt-3 text-center text-white">{zoomItem.title} — {zoomItem.location}</div>
+          </div>
+        ) : null}
+      </Lightbox>
 
       {/* TENTANG & KEUNGGULAN */}
       <section id="about" className="py-16 md:py-20">
@@ -425,6 +516,7 @@ export default function Page() {
             subtitle="Ceritakan kebutuhan Anda, kami kirim estimasi RAB dan timeline pengerjaan."
           />
           <div className="mt-8 grid lg:grid-cols-2 gap-8">
+            {/* Form WhatsApp */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -435,13 +527,14 @@ export default function Page() {
                 const type = String(fd.get("type") || "");
                 const message = String(fd.get("message") || "");
                 const text = encodeURIComponent(
-                  `Halo ${BRAND.name}.\\nNama: ${name}\\nTelepon: ${phone}\\nKebutuhan: ${type}\\nPesan: ${message}`
+                  `Halo ${BRAND.name}.\nNama: ${name}\nTelepon: ${phone}\nKebutuhan: ${type}\nPesan: ${message}`
                 );
                 window.open(`https://wa.me/${BRAND.phoneIntl}?text=${text}`, "_blank");
               }}
               className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
             >
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="font-semibold">Kirim via WhatsApp</div>
+              <div className="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>
                   <label className="text-sm font-medium">Nama</label>
                   <input name="name" required placeholder="Nama lengkap" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10" />
@@ -472,24 +565,38 @@ export default function Page() {
               </div>
             </form>
 
-            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-              <h3 className="font-semibold text-lg">Info & Area Layanan</h3>
-              <p className="text-sm text-muted-foreground mt-2">Kami melayani proyek rumah, komplek, sekolah, kampus, hingga fasilitas olahraga komersial di wilayah {BRAND.city}.</p>
-              <div className="mt-4 grid sm:grid-cols-2 gap-3">
-                {["Survey lokasi", "Konsultasi material", "RAB transparan", "Tim bersertifikat"].map((x) => (
-                  <div key={x} className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4" /> {x}
-                  </div>
-                ))}
+            {/* Form Email */}
+            <form onSubmit={submitEmail} className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+              <div className="font-semibold">Kirim via Email</div>
+              <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="text-sm font-medium">Nama</label>
+                  <input name="name" required placeholder="Nama lengkap" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">No. Telepon</label>
+                  <input name="phone" required placeholder="08xxxxxxxxxx" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium">Jenis Pekerjaan</label>
+                  <select name="type" className="mt-1 w-full rounded-xl border px-3 py-2">
+                    <option>Pembuatan Lapangan Baru</option>
+                    <option>Renovasi/Perbaikan</option>
+                    <option>Coating & Garis Lapangan</option>
+                    <option>Pemasangan Rumput Sintetis</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium">Pesan</label>
+                  <textarea name="message" rows={4} placeholder="Ukuran area, kondisi eksisting, target selesai, dll." className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10" />
+                </div>
               </div>
-              <div className="mt-6 rounded-xl border border-black/10 p-4 bg-slate-50">
-                <div className="text-sm text-muted-foreground">Kontak cepat</div>
-                <a href={`tel:${BRAND.phoneIntl}`} className="mt-1 block font-semibold">+{BRAND.phoneIntl}</a>
-                <a href={waLink} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 bg-white hover:shadow">
-                  <PhoneCall className="w-4 h-4" /> Chat WhatsApp
-                </a>
-              </div>
-            </div>
+              <button disabled={sending} type="submit" className="mt-4 inline-flex items-center gap-2 rounded-xl border px-4 py-2 bg-black text-white hover:shadow disabled:opacity-60">
+                {sending ? "Mengirim..." : "Kirim via Email"} <ChevronRight className="w-4 h-4" />
+              </button>
+              {sendResult && <div className="mt-3 text-sm">{sendResult}</div>}
+              <div className="mt-3 text-xs text-muted-foreground">Pastikan email sudah dikonfigurasi di environment (RESEND_API_KEY, CONTACT_TO_EMAIL).</div>
+            </form>
           </div>
         </div>
       </section>
