@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "LapanganPro.ID — Portofolio Kontraktor Lapangan",
-  description: "Ahli pembuatan & renovasi lapangan futsal, tenis, basket, badminton. Survey cepat & garansi finishing.",
+  description: "Ahli pembuatan & renovasi lapangan futsal, tenis, basket, badminton.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
   openGraph: {
     title: "LapanganPro.ID — Portofolio Kontraktor Lapangan",
